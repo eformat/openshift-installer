@@ -993,10 +993,13 @@ func getLaunchTemplateInstanceMarketOptionsRequest(i *expinfrav1.AWSLaunchTempla
 
 	case infrav1.MarketTypeSpot:
 		// Set required values for Spot instances
-		spotOptions := &ec2.LaunchTemplateSpotMarketOptionsRequest{}
-
-		// Persistent option is not available for EC2 autoscaling, EC2 makes a one-time request by default and setting request type should not be allowed.
-		// For one-time requests, only terminate option is available as interruption behavior, and default for spotOptions.SetInstanceInterruptionBehavior() is terminate, so it is not set here explicitly.
+		spotOptions := &ec2.LaunchTemplateSpotMarketOptionsRequest{
+			// WARNING: This diverges from upstream CAPA semantics.
+			// We intentionally force persistent Spot requests and stop on interruption.
+			// This may be rejected by some AWS autoscaling flows and/or break CAPI assumptions.
+			InstanceInterruptionBehavior: aws.String(ec2.InstanceInterruptionBehaviorStop),
+			SpotInstanceType:             aws.String(ec2.SpotInstanceTypePersistent),
+		}
 
 		if maxPrice := aws.StringValue(i.SpotMarketOptions.MaxPrice); maxPrice != "" {
 			spotOptions.SetMaxPrice(maxPrice)

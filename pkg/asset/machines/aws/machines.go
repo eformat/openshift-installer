@@ -35,6 +35,8 @@ type machineProviderInput struct {
 	userTags         map[string]string
 	publicSubnet     bool
 	securityGroupIDs []string
+	spotMarket       *awstypes.SpotMarketOptions
+	marketType       awstypes.MarketType
 }
 
 // Machines returns a list of machines for a machinepool.
@@ -77,6 +79,8 @@ func Machines(clusterID string, region string, subnets aws.SubnetsByZone, pool *
 			userTags:         userTags,
 			publicSubnet:     publicSubnet,
 			securityGroupIDs: pool.Platform.AWS.AdditionalSecurityGroupIDs,
+			spotMarket:       mpool.SpotMarketOptions,
+			marketType:       mpool.MarketType,
 		})
 		if err != nil {
 			return nil, nil, errors.Wrap(err, "failed to create provider")
@@ -255,6 +259,25 @@ func provider(in *machineProviderInput) (*machineapi.AWSMachineProviderConfig, e
 		CredentialsSecret: &corev1.LocalObjectReference{Name: "aws-cloud-credentials"},
 		Placement:         machineapi.Placement{Region: in.region, AvailabilityZone: in.zone},
 		SecurityGroups:    securityGroups,
+	}
+
+	if in.spotMarket != nil {
+		config.SpotMarketOptions = &machineapi.SpotMarketOptions{
+			MaxPrice: in.spotMarket.MaxPrice,
+		}
+	}
+
+	switch in.marketType {
+	case awstypes.MarketTypeOnDemand:
+		config.MarketType = machineapi.MarketTypeOnDemand
+	case awstypes.MarketTypeSpot:
+		config.MarketType = machineapi.MarketTypeSpot
+	case awstypes.MarketTypeCapacityBlock:
+		config.MarketType = machineapi.MarketTypeCapacityBlock
+	case "":
+		if in.spotMarket != nil {
+			config.MarketType = machineapi.MarketTypeSpot
+		}
 	}
 
 	visibility := "private"

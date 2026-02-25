@@ -102,6 +102,8 @@ func MachineSets(in *MachineSetInput) ([]*machineapi.MachineSet, error) {
 			userTags:         in.InstallConfigPlatformAWS.UserTags,
 			publicSubnet:     publicSubnet,
 			securityGroupIDs: in.Pool.Platform.AWS.AdditionalSecurityGroupIDs,
+			spotMarket:       mpool.SpotMarketOptions,
+			marketType:       mpool.MarketType,
 		})
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to create provider")

@@ -139,6 +139,28 @@ func GenerateMachines(clusterID string, in *MachineInput) ([]*asset.RuntimeFile,
 			)
 		}
 
+		if mpool.SpotMarketOptions != nil {
+			awsMachine.Spec.SpotMarketOptions = &capa.SpotMarketOptions{}
+			if mpool.SpotMarketOptions.MaxPrice != nil {
+				awsMachine.Spec.SpotMarketOptions.MaxPrice = mpool.SpotMarketOptions.MaxPrice
+			}
+		}
+
+		switch mpool.MarketType {
+		case awstypes.MarketTypeOnDemand:
+			awsMachine.Spec.MarketType = capa.MarketTypeOnDemand
+		case awstypes.MarketTypeSpot:
+			awsMachine.Spec.MarketType = capa.MarketTypeSpot
+		case awstypes.MarketTypeCapacityBlock:
+			awsMachine.Spec.MarketType = capa.MarketTypeCapacityBlock
+		case "":
+			// Align generated manifests with expected Spot behavior when options are provided.
+			if mpool.SpotMarketOptions != nil {
+				awsMachine.Spec.MarketType = capa.MarketTypeSpot
+			}
+		}
+
+
 		result = append(result, &asset.RuntimeFile{
 			File:   asset.File{Filename: fmt.Sprintf("10_inframachine_%s.yaml", awsMachine.Name)},
 			Object: awsMachine,

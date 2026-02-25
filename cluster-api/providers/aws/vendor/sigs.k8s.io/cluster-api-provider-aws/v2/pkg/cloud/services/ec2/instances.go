@@ -1175,14 +1175,11 @@ func getInstanceMarketOptionsRequest(i *infrav1.Instance) (*ec2.InstanceMarketOp
 	case infrav1.MarketTypeSpot:
 		// Set required values for Spot instances
 		spotOpts := &ec2.SpotMarketOptions{
-			// The following two options ensure that:
-			// - If an instance is interrupted, it is terminated rather than hibernating or stopping
-			// - No replacement instance will be created if the instance is interrupted
-			// - If the spot request cannot immediately be fulfilled, it will not be created
-			// This behaviour should satisfy the 1:1 mapping of Machines to Instances as
-			// assumed by the Cluster API.
-			InstanceInterruptionBehavior: aws.String(ec2.InstanceInterruptionBehaviorTerminate),
-			SpotInstanceType:             aws.String(ec2.SpotInstanceTypeOneTime),
+			// WARNING: This diverges from upstream CAPA semantics.
+			// We intentionally use persistent Spot requests and stop on interruption.
+			// This may violate Cluster API assumptions about Machine-to-Instance lifecycle.
+			InstanceInterruptionBehavior: aws.String(ec2.InstanceInterruptionBehaviorStop),
+			SpotInstanceType:             aws.String(ec2.SpotInstanceTypePersistent),
 		}
 
 		if maxPrice := aws.StringValue(i.SpotMarketOptions.MaxPrice); maxPrice != "" {

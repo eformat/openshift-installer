@@ -27,6 +27,12 @@ var (
 	}()
 
 	validMetadataAuthValues = sets.NewString("Required", "Optional")
+
+	validMarketTypeValues = sets.NewString(
+		string(aws.MarketTypeOnDemand),
+		string(aws.MarketTypeSpot),
+		string(aws.MarketTypeCapacityBlock),
+	)
 )
 
 // AWS has a limit of 16 security groups. See:
@@ -53,6 +59,21 @@ func ValidateMachinePool(platform *aws.Platform, p *aws.MachinePool, fldPath *fi
 	}
 
 	allErrs = append(allErrs, validateSecurityGroups(platform, p, fldPath)...)
+	allErrs = append(allErrs, validateMarketOptions(p, fldPath)...)
+
+	return allErrs
+}
+
+func validateMarketOptions(p *aws.MachinePool, fldPath *field.Path) field.ErrorList {
+	allErrs := field.ErrorList{}
+
+	if p.MarketType != "" && !validMarketTypeValues.Has(string(p.MarketType)) {
+		allErrs = append(allErrs, field.NotSupported(fldPath.Child("marketType"), p.MarketType, validMarketTypeValues.List()))
+	}
+
+	if p.SpotMarketOptions != nil && p.MarketType == aws.MarketTypeOnDemand {
+		allErrs = append(allErrs, field.Forbidden(fldPath.Child("spotMarketOptions"), "spotMarketOptions cannot be set when marketType is OnDemand"))
+	}
 
 	return allErrs
 }
