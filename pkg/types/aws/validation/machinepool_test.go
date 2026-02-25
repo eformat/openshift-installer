@@ -74,7 +74,7 @@ func TestValidateMachinePool(t *testing.T) {
 					IOPS: 10000,
 				},
 			},
-			expected: fmt.Sprintf("test-path.iops: Invalid value: 10000: iops not supported for type gp2"),
+			expected: "test-path.iops: Invalid value: 10000: iops not supported for type gp2",
 		},
 		{
 			name: "invalid zone",
@@ -96,7 +96,7 @@ func TestValidateMachinePool(t *testing.T) {
 					Size: 128,
 				},
 			},
-			expected: fmt.Sprintf("test-path.type: Invalid value: \"bad-volume-type\": failed to find volume type bad-volume-type"),
+			expected: "test-path.type: Invalid value: \"bad-volume-type\": failed to find volume type bad-volume-type",
 		},
 		{
 			name: "invalid volume size using negative",
@@ -107,7 +107,7 @@ func TestValidateMachinePool(t *testing.T) {
 					IOPS: 10000,
 				},
 			},
-			expected: fmt.Sprintf("test-path.size: Invalid value: -1: volume size value must be a positive number"),
+			expected: "test-path.size: Invalid value: -1: volume size value must be a positive number",
 		},
 		{
 			name: "invalid metadata auth option",
@@ -191,6 +191,28 @@ func TestValidateMachinePool(t *testing.T) {
 				},
 			},
 			expected: `^test-path\.throughput: Invalid value: 125: throughput not supported for type gp2$`,
+		},
+		{
+			name: "valid spot market type with empty options",
+			pool: &aws.MachinePool{
+				MarketType:        aws.MarketTypeSpot,
+				SpotMarketOptions: &aws.SpotMarketOptions{},
+			},
+		},
+		{
+			name: "invalid market type",
+			pool: &aws.MachinePool{
+				MarketType: aws.MarketType("bad"),
+			},
+			expected: `^test-path\.marketType: Unsupported value: "bad": supported values: "CapacityBlock", "OnDemand", "Spot"$`,
+		},
+		{
+			name: "invalid on-demand with spot options",
+			pool: &aws.MachinePool{
+				MarketType:        aws.MarketTypeOnDemand,
+				SpotMarketOptions: &aws.SpotMarketOptions{},
+			},
+			expected: `^test-path\.spotMarketOptions: Forbidden: spotMarketOptions cannot be set when marketType is OnDemand$`,
 		},
 	}
 	for _, tc := range cases {

@@ -49,6 +49,20 @@ type MachinePool struct {
 	// +optional
 	AdditionalSecurityGroupIDs []string `json:"additionalSecurityGroupIDs,omitempty"`
 
+	// SpotMarketOptions defines the options available to a user when configuring
+	// machines to run on Spot instances. Most users should provide an empty struct.
+	//
+	// +optional
+	SpotMarketOptions *SpotMarketOptions `json:"spotMarketOptions,omitempty"`
+
+	// MarketType specifies the type of market for EC2 instances.
+	// Valid values are OnDemand, Spot, CapacityBlock and omitted.
+	//
+	// Defaults to OnDemand. When SpotMarketOptions is provided, the marketType defaults to Spot.
+	//
+	// +optional
+	MarketType MarketType `json:"marketType,omitempty"`
+
 	// CPUOptions defines CPU-related settings for the instance, including the confidential computing policy.
 	// When omitted, this means no opinion and the AWS platform is left to choose a reasonable default.
 	// More info:
@@ -108,10 +122,39 @@ func (a *MachinePool) Set(required *MachinePool) {
 		a.AdditionalSecurityGroupIDs = required.AdditionalSecurityGroupIDs
 	}
 
+	if required.SpotMarketOptions != nil {
+		a.SpotMarketOptions = required.SpotMarketOptions
+	}
+
+	if required.MarketType != "" {
+		a.MarketType = required.MarketType
+	}
+
 	if required.CPUOptions != nil {
 		a.CPUOptions = required.CPUOptions
 	}
 }
+
+// SpotMarketOptions defines the options available when configuring machines to run on Spot instances.
+type SpotMarketOptions struct {
+	// MaxPrice defines the maximum price the user is willing to pay for Spot instances.
+	// When omitted, this means On-Demand price.
+	// +optional
+	MaxPrice *string `json:"maxPrice,omitempty"`
+}
+
+// MarketType describes the market type of an EC2 instance.
+// +kubebuilder:validation:Enum=OnDemand;Spot;CapacityBlock
+type MarketType string
+
+const (
+	// MarketTypeOnDemand is a MarketType enum value.
+	MarketTypeOnDemand MarketType = "OnDemand"
+	// MarketTypeSpot is a MarketType enum value.
+	MarketTypeSpot MarketType = "Spot"
+	// MarketTypeCapacityBlock is a MarketType enum value.
+	MarketTypeCapacityBlock MarketType = "CapacityBlock"
+)
 
 // EC2RootVolume defines the storage for an ec2 instance.
 type EC2RootVolume struct {

@@ -44,6 +44,9 @@ func stubDeepCopyMachineInput(in *MachineInput) *MachineInput {
 	if in.Pool != nil {
 		out.Pool = &types.MachinePool{}
 		*out.Pool = *in.Pool
+		if in.Pool.Platform.AWS != nil {
+			out.Pool.Platform.AWS = in.Pool.Platform.AWS.DeepCopy()
+		}
 	}
 	if len(in.Subnets) > 0 {
 		out.Subnets = make(aws.SubnetsByZone)
@@ -243,6 +246,60 @@ func TestGenerateMachines(t *testing.T) {
 					})
 				}
 				return infraMachineFiles
+			}(),
+		},
+		{
+			name:      "spot market options set, market type defaults to spot",
+			clusterID: stubClusterID,
+			input: func() *MachineInput {
+				in := stubGetMachineManagedVpc()
+				in.Pool.Replicas = ptr.To(int64(1))
+				in.Pool.Platform.AWS.Zones = []string{"A"}
+				in.Pool.Platform.AWS.SpotMarketOptions = &awstypes.SpotMarketOptions{}
+				return in
+			}(),
+			wantInfraFiles: func() []*asset.RuntimeFile {
+				machineName := fmt.Sprintf("%s-%s-%d", stubClusterID, "master", 0)
+				machine := &capa.AWSMachine{
+					TypeMeta: metav1.TypeMeta{
+						APIVersion: "infrastructure.cluster.x-k8s.io/v1beta2",
+						Kind:       "AWSMachine",
+					},
+					ObjectMeta: metav1.ObjectMeta{
+						Name:   machineName,
+						Labels: map[string]string{"cluster.x-k8s.io/control-plane": ""},
+					},
+					Spec: capa.AWSMachineSpec{
+						InstanceMetadataOptions: &capa.InstanceMetadataOptions{
+							HTTPEndpoint: capa.InstanceMetadataEndpointStateEnabled,
+							HTTPTokens:   capa.HTTPTokensStateOptional,
+						},
+						AMI: capa.AMIReference{
+							ID: ptr.To(""),
+						},
+						IAMInstanceProfile: fmt.Sprintf("%s-%s-profile", stubClusterID, "master"),
+						PublicIP:           ptr.To(false),
+						Subnet: &capa.AWSResourceReference{
+							Filters: []capa.Filter{{Name: "tag:Name", Values: []string{
+								fmt.Sprintf("%s-subnet-private-%s", stubClusterID, "A"),
+							}}},
+						},
+						SSHKeyName: ptr.To(""),
+						RootVolume: &capa.Volume{
+							Encrypted: ptr.To(true),
+						},
+						UncompressedUserData: ptr.To(true),
+						Ignition: &capa.Ignition{
+							StorageType: capa.IgnitionStorageTypeOptionUnencryptedUserData,
+						},
+						SpotMarketOptions: &capa.SpotMarketOptions{},
+						MarketType:        capa.MarketTypeSpot,
+					},
+				}
+				return []*asset.RuntimeFile{{
+					File:   asset.File{Filename: fmt.Sprintf("10_inframachine_%s.yaml", machineName)},
+					Object: machine,
+				}}
 			}(),
 		},
 		// Error's scenarios
